@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RNF Chore Wheel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 20px;
+    }
+    h1 {
+      color: red;
+      font-weight: bold;
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+    #controls {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      text-align: right;
+      font-size: 18px;
+    }
+    #countdown {
+      font-size: 24px;
+      font-weight: bold;
+      color: black;
+    }
+    .input-label {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    #nextOCDate, #zoomLink {
+      width: 200px;
+      margin-top: 5px;
+      padding: 5px;
+      font-size: 14px;
+    }
+    #wheelContainer {
+      position: relative;
+      width: 800px;
+      height: 800px;
+      margin: 0 auto;
+    }
+    #choreWheel, #innerWheel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .name-label {
+      position: absolute;
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
+      width: 120px;
+      left: 50%;
+      top: 50%;
+      transform-origin: 0 0;
+    }
+    .inner-slice-label {
+      position: absolute;
+      font-size: 12px;
+      font-weight: bold;
+      color: black;
+      text-align: center;
+      width: 100px;
+      left: 50%;
+      top: 50%;
+      transform-origin: 50% 0%;
+    }
+    #rotationControls {
+      position: absolute;
+      bottom: 20px;
+      right: 30px;
+    }
+    #rotationControls button {
+      font-size: 16px;
+      margin: 5px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>RNF Chore Wheel</h1>
+  <div id="controls">
+    <div id="countdown">Days until next rotation: 0</div>
+    <div class="input-label">Next OC on:</div>
+    <input type="date" id="nextOCDate" value="2024-11-21">
+    <div class="input-label">Zoom Link:</div>
+    <input type="text" id="zoomLink">
+  </div>
+  <div id="wheelContainer">
+    <canvas id="choreWheel" width="800" height="800"></canvas>
+    <canvas id="innerWheel" width="600" height="600"></canvas>
+  </div>
+  <div id="rotationControls">
+    <button onclick="rotateInnerWheel(-1)">Rotate Left</button>
+    <button onclick="rotateInnerWheel(1)">Rotate Right</button>
+  </div>
+
+  <!-- Include Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const names = [
+      "Leah", "Luis", "JuliAnne", "Kye", "Viv", "Dylan", "Ivanna", "Aisha",
+      "Jazz", "Jack", "Chris", "Sahiba", "Dana", "Kayne", "Galo", "Arthur",
+      "Summer", "Victoria", "Nicholas", "Brett", "Julian", "Ivan", "Becca",
+      "Mikey P", "Aly", "Tommi", "Ethan", "Peter", "Hannah", "Liam", "Alex F"
+    ];
+
+    const outerColors = names.map((_, index) => `hsl(${index * (360 / names.length)}, 70%, 80%)`);
+    const anglePerSlice = 360 / names.length; // Degrees
+    let currentRotation = 0;
+
+    // Create outer chart
+    const ctx = document.getElementById('choreWheel').getContext('2d');
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: names,
+        datasets: [{
+          data: new Array(names.length).fill(1),
+          backgroundColor: outerColors
+        }]
+      },
+      options: {
+        responsive: false,
+        plugins: { legend: { display: false } }
+      }
+    });
+
+ // Calculate the current rotation based on the date
+    const startDate = new Date(2024, 10, 7); // Corrected start date: November 7, 2024
+    const today = new Date();
+    const daysSinceStart = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+    const twoWeekPeriods = Math.floor(Math.abs(daysSinceStart) / 14);
+    const daysUntilNextRotation = 14 - (Math.abs(daysSinceStart) % 14);
+
+    // Display the countdown
+    document.getElementById('countdown').innerText = `Days until next rotation: ${daysUntilNextRotation}`;
+
+    // Position outer name labels closer to the wheel
+    const wheelContainer = document.getElementById('wheelContainer');
+    const outerRadius = 360; // Adjusted distance for outer labels
+
+    names.forEach((name, index) => {
+      const angle = ((index * anglePerSlice) + (anglePerSlice / 2) - 90) * (Math.PI / 180); // Adjust by -90 for alignment
+      const x = 400 + outerRadius * Math.cos(angle); // 400 is half of container width
+      const y = 400 + outerRadius * Math.sin(angle);
+
+      const label = document.createElement('div');
+      label.className = 'name-label';
+      label.style.left = `${x}px`;
+      label.style.top = `${y}px`;
+      label.style.transform = `translate(-50%, -50%)`;
+      label.innerText = name;
+      wheelContainer.appendChild(label);
+    });
+
+    // Inner wheel setup
+    const innerColors = new Array(names.length).fill("white");
+    const highlightedIndexes = [0, 7, 15, 23];
+    highlightedIndexes.forEach((index, i) => {
+      const colors = ["red", "yellow", "red", "orange"];
+      innerColors[index] = colors[i];
+    });
+
+    const innerCtx = document.getElementById('innerWheel').getContext('2d');
+    const innerChart = new Chart(innerCtx, {
+      type: 'pie',
+      data: {
+        labels: names,
+        datasets: [{
+          data: new Array(names.length).fill(1),
+          backgroundColor: innerColors,
+          borderColor: "white",
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: false,
+        rotation: currentRotation, // Initial rotation
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // Rotate the inner wheel and update inner labels
+    function rotateInnerWheel(direction) {
+      currentRotation = (currentRotation + direction * anglePerSlice) % 360; // Increment rotation
+      innerChart.options.rotation = currentRotation; // Use directly
+      innerChart.update(); // Refresh chart
+      updateInnerLabels(); // Sync labels
+    }
+
+    // Position inner slice labels on the bisector of highlighted slices
+    const innerRadius = 240; // Distance for inner labels
+    function updateInnerLabels() {
+      const existingLabels = document.querySelectorAll('.inner-slice-label');
+      existingLabels.forEach(label => label.remove()); // Remove only inner labels
+
+      highlightedIndexes.forEach((index, i) => {
+        const angle = ((index * anglePerSlice) + currentRotation - 90 + anglePerSlice/3) * (Math.PI / 180); // Align to rotation
+        const x = 400 + innerRadius * Math.cos(angle);
+        const y = 400 + innerRadius * Math.sin(angle);
+
+        const label = document.createElement('div');
+        label.className = 'inner-slice-label';
+        label.style.left = `${x}px`;
+        label.style.top = `${y}px`;
+        label.style.transform = `translate(-50%, -50%) rotate(${(index * anglePerSlice) + currentRotation - 90 + anglePerSlice/2}deg)`; // Align to slice
+        label.innerText = ["OC Facilitator", "OC Notetaker", "OC Facilitator", "OC Propaganda"][i];
+        wheelContainer.appendChild(label);
+      });
+    }
+
+    // Initial call to position inner labels
+    updateInnerLabels();
+  </script>
+</body>
+</html>
